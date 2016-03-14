@@ -66,9 +66,11 @@ class XmlEntity(object):
             self.parent.children.append(self)
 
     def add_value(self, xml_element):
-        '''Adds element.text as a value if it is not an empty string'''
+        '''Adds element.text as a value'''
         if xml_element.text and xml_element.text.strip():
             self.values.append(xml_element.text)
+        else:
+            self.values.append(None)
 
     def _reset_values(self):
         self.values = []
@@ -94,8 +96,6 @@ class XmlEntity(object):
         #executes once we've hit an end event for the corresponding element
         self._set_entity_type()
         if self.entity_type == 'pair':
-            # adds None to values list if the element has no text
-            if len(self.values) == 0: self.values = [None]
             return
         elif self.entity_type == 'array':
             values = []
@@ -117,7 +117,6 @@ class XmlEntity(object):
         map(lambda child: child._reset_values(), self.children)
 
         if self._return_values():
-#            output.append({self.name: self.values[0]})
             sys.stdout.write(json.dumps({self.name: self.values[0]})+'\n')
             self._reset_values()
             
