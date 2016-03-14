@@ -3,23 +3,54 @@ import sys
 import json
 import xml.etree.cElementTree as et
 
-#file_path = '/Users/conor/discogs_analysis/data/discogs_20160301_artists.xml'
-#file_path = '/Users/conor/discogs_analysis/data/artist_test50.xml'
-file_path = '/Users/conor/discogs_analysis/data/artist_test2.xml'
-#file_path = '/Users/conor/discogs_analysis/data/artist_test.xml'
-entities = {}
-output = []
+class Parser(object):
+    def __init__(self, filepath):
+        self.iterparser =  Parser.get_parser(filepath)
+        self.entities = {}
+        self.path = []  
+        self.parent_class = None
 
-def get_parser(filepath):
-    """takes a path for an xml file and returns an iterparse object with start and end events"""
-    xmlfile = open(filepath)
-    return  et.iterparse(xmlfile, events=('start', 'end'))
+    @staticmethod
+    def get_parser(filepath):
+        """takes a path for an xml file and returns an iterparse object with start and end events"""
+        xmlfile = open(filepath)
+        return  et.iterparse(xmlfile, events=('start', 'end'))
 
-def get_from_dict(datadict, maplist):
-    return reduce(lambda d, k: d.get(k), maplist, datadict)
+    @staticmethod
+    def get_from_dict(datadict, maplist):
+        return reduce(lambda d, k: d.get(k), maplist, datadict)
 
-def set_in_dict(datadict, maplist, value):
-    get_from_dict(datadict, maplist[:-1])[maplist[-1]] = value
+    @staticmethod
+    def set_in_dict(datadict, maplist, value):
+        Parser.get_from_dict(datadict, maplist[:-1])[maplist[-1]] = value
+
+    def parse_xml(self, event, element):
+        if event == 'start':
+            self.path.append(element.tag)
+            # get element metadata and class from the entity array
+            element_meta = Parser.get_from_dict(self.entities, self.path)
+            if element_meta:
+                element_class = element_meta.get('class')
+            # create the element metadata if this is the first time we've seen it
+            else:
+                element_meta = {}
+                Parser.set_in_dict(self.entities, self.path, element_meta)
+                element_class = None
+            # create the element class if this is the first time we've seen it
+            if not element_class:
+                element_class = DiscogsEntity(element, self.parent_class)
+                element_meta.update({'class':element_class})
+            self.parent_class = element_class
+        else:
+            if self.path:
+                del self.path[-1]
+            if self.parent_class:
+                # the element is now closed so it can now be processed
+                # iterparse only fully parses element.text on end events
+                self.parent_class.add_value(element)
+                self.parent_class.terminate_element()
+                # move the parent class up one level
+                self.parent_class = self.parent_class.parent
 
 class XmlEntity(object):
     def __init__(self, xml_element, parent_class):
@@ -91,35 +122,6 @@ class XmlEntity(object):
             self._reset_values()
             
 
-def parse_xml(iterparser, path=[], parent_class=None):
-    for event, element in iterparser:
-        if event == 'start':
-            path.append(element.tag)
-            # get element metadata and class from the entity array
-            element_meta = get_from_dict(entities, path)
-            if element_meta:
-                element_class = element_meta.get('class')
-            # create the element metadata if this is the first time we've seen it
-            else:
-                element_meta = {}
-                set_in_dict(entities, path, element_meta)
-                element_class = None
-            # create the element class if this is the first time we've seen it
-            if not element_class:
-                element_class = DiscogsEntity(element, parent_class)
-                element_meta.update({'class':element_class})
-            parse_xml(iterparser, path, element_class)
-        else:
-            if path:
-                del path[-1]
-            if parent_class:
-		# the element is now closed so it can now be processed
-                # iterparse only fully parses element.text on end events
-                parent_class.add_value(element)
-                parent_class.terminate_element()
-		# move the parent class up one level
-		parent_class = parent_class.parent
-
 class DiscogsEntity(XmlEntity):
     def __init__(self, xml_element, parent_class):
         super(XmlEntity, self).__init__()
@@ -141,9 +143,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     filepath = args.filepath
-    iterparser = get_parser(filepath)
-    parse_xml(iterparser)
-    print entities
+    parser = Parser(filepath)
+    for event, element in parser.iterparser:
+        parser.parse_xml(event, element)
+
 
 
 
