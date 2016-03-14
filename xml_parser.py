@@ -66,11 +66,9 @@ class XmlEntity(object):
             self.parent.children.append(self)
 
     def add_value(self, xml_element):
-        '''Adds element.text as a value'''
+        '''Adds element.text as a value if it is not an empty string'''
         if xml_element.text and xml_element.text.strip():
             self.values.append(xml_element.text)
-        else:
-            self.values.append(None)
 
     def _reset_values(self):
         self.values = []
@@ -78,10 +76,13 @@ class XmlEntity(object):
     def _return_values(self):
         '''Criteria for when values should be output to the stream.
            Default is for the top level element (this is inefficient).'''
-        if self.parent:
-            return False
+        if args.split:
+            if self.name in args.split:
+                return True
         else:
-            return True
+            if self.parent is None:
+                return True
+        return False
 
     def _set_entity_type(self):
         if len(self.children) == 0:
@@ -96,6 +97,7 @@ class XmlEntity(object):
         #executes once we've hit an end event for the corresponding element
         self._set_entity_type()
         if self.entity_type == 'pair':
+            if len(self.values) == 0: self.values = [None]
             return
         elif self.entity_type == 'array':
             values = []
@@ -130,15 +132,17 @@ class DiscogsEntity(XmlEntity):
         self.values = []
         self.children = []
 
-    def _return_values(self):
-        if self.name in ['artist']:
-            return True
-        else:
-            return False
+#    def _return_values(self):
+#        if self.name in args.split:
+#            return True
+#        else:
+#            return False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("filepath")
+    parser.add_argument("-s", "--split", nargs="+", 
+            help="element names that will be split and output separately.")
     args = parser.parse_args()
     
     filepath = args.filepath
