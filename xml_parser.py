@@ -178,8 +178,6 @@ class XmlEntity(object):
         # output values for this element if it meets the requirements
         self._output_values()
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="subparser_name", help="sub-command help")
@@ -189,6 +187,7 @@ if __name__ == "__main__":
             help="Converts the full XML document to JSON")
     full_parser.add_argument("-f", "--filepath", required=True,
             help="path to file to be processed")
+    full_parser.add_argument("-c", "--csv", help="output as csv", action="store_true")
 
     # parser for the 'split' command
     split_parser = subparsers.add_parser('split',
@@ -199,6 +198,8 @@ if __name__ == "__main__":
             help="element tags that will be split and output separately.")
     split_parser.add_argument("-k", "--keys", nargs="+",
             help="Values that will be donated from parents and serve as foreign keys for split elements")
+#    split_parser.add_argument("-c", "--csv", help="output as csv", action="store_true")
+
     args = parser.parse_args()
     
     if args.subparser_name == 'full':
